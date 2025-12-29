@@ -1,0 +1,179 @@
+
+import React, { useState } from 'react';
+import { Job, JobStatus, UserProfile } from '../types';
+import { Plus, X, FileCheck, User, Clock, AlertCircle, Info, ShieldCheck } from 'lucide-react';
+
+interface ImportClearanceProps {
+  jobs: Job[];
+  onAddJob: (job: Partial<Job>) => void;
+  onDeleteJob: (jobId: string) => void;
+  currentUser: UserProfile;
+}
+
+export const ImportClearance: React.FC<ImportClearanceProps> = ({ jobs, onAddJob, onDeleteJob, currentUser }) => {
+  const [showModal, setShowModal] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newActivity, setNewActivity] = useState({
+    id: '', // Job No.
+    shipperName: '',
+    jobDate: selectedDate
+  });
+
+  const clearanceJobs = jobs.filter(j => j.isImportClearance && j.jobDate === selectedDate);
+  const slotsRemaining = 5 - clearanceJobs.length;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (slotsRemaining <= 0) {
+      alert("Maximum of 5 import clearance jobs reached for this date.");
+      return;
+    }
+    onAddJob({
+      ...newActivity,
+      title: newActivity.id,
+      isImportClearance: true,
+      jobDate: selectedDate,
+      loadingType: 'Direct Loading', // Default for import
+      priority: 'HIGH',
+      specialRequests: {
+        handyman: false, manpower: false, overtime: false,
+        documents: true, packingList: true, crateCertificate: false, walkThrough: false
+      }
+    });
+    setShowModal(false);
+    setNewActivity({ id: '', shipperName: '', jobDate: selectedDate });
+  };
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="bg-white p-10 rounded-3xl shadow-sm border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-10">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800 tracking-tight flex items-center gap-3">
+            <FileCheck className="w-8 h-8 text-indigo-600" />
+            Import Clearance Hub
+          </h2>
+          <p className="text-sm text-slate-500 font-medium mt-1">Regulatory clearance and documentation pipeline</p>
+        </div>
+        
+        <div className="flex items-center gap-6 bg-slate-50 p-6 rounded-3xl border border-slate-100">
+          <div className="text-right">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Clearance Threshold</p>
+            <p className="text-2xl font-black text-slate-800">{slotsRemaining} Units Remaining</p>
+          </div>
+          <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+            <div className={`w-3 h-3 rounded-full ${slotsRemaining > 0 ? 'bg-indigo-500 animate-pulse' : 'bg-rose-500'}`}></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="lg:col-span-1 space-y-6">
+          <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 block">Process Date</label>
+            <input 
+              type="date" 
+              value={selectedDate} 
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:ring-1 focus:ring-indigo-500 outline-none cursor-pointer"
+            />
+          </div>
+
+          <button 
+            disabled={slotsRemaining <= 0}
+            onClick={() => setShowModal(true)}
+            className="w-full flex items-center justify-center gap-3 bg-indigo-600 text-white p-5 rounded-3xl font-bold shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed group uppercase text-xs tracking-widest"
+          >
+            <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+            New Clearance Task
+          </button>
+
+          <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200">
+            <div className="flex gap-3 text-slate-600 mb-3">
+              <ShieldCheck className="w-5 h-5 shrink-0" />
+              <p className="text-xs font-bold uppercase tracking-widest">Compliance Rule</p>
+            </div>
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              Daily import clearance is capped at 5 specialized units to maintain meticulous documentation standards.
+            </p>
+          </div>
+        </div>
+
+        <div className="lg:col-span-3 space-y-4">
+          {clearanceJobs.length === 0 ? (
+            <div className="bg-white border-2 border-dashed border-slate-200 rounded-[2.5rem] p-32 flex flex-col items-center justify-center text-center">
+              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6">
+                <FileCheck className="w-10 h-10 text-slate-200" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-400">No clearance tasks for this date</h3>
+            </div>
+          ) : (
+            clearanceJobs.map((activity, index) => (
+              <div key={activity.id} className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex items-center justify-between group hover:border-indigo-200 transition-all">
+                <div className="flex items-center gap-8">
+                  <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 font-bold text-xl border border-slate-100">
+                    {index + 1}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-3 mb-1">
+                      <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">IMP {activity.id}</span>
+                      {activity.status === JobStatus.PENDING_ADD && (
+                         <span className="text-[9px] font-bold bg-amber-50 text-amber-600 px-2.5 py-1 rounded-full uppercase border border-amber-100">Authorization Pending</span>
+                      )}
+                    </div>
+                    <h4 className="font-bold text-2xl text-slate-800">{activity.shipperName}</h4>
+                    <div className="flex items-center gap-6 mt-3 text-xs text-slate-400 font-bold uppercase tracking-tighter">
+                       <span className="flex items-center gap-2"><Clock className="w-4 h-4" /> Priority Clearance</span>
+                       <span className="flex items-center gap-2"><User className="w-4 h-4" /> Agent # {activity.requesterId}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <button 
+                  onClick={() => onDeleteJob(activity.id)}
+                  className="p-4 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-2xl transition-all opacity-0 group-hover:opacity-100"
+                >
+                  <X className="w-7 h-7" />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
+            <div className="p-8 border-b bg-white flex justify-between items-center rounded-t-3xl">
+              <div>
+                <h3 className="text-xl font-bold text-slate-800 uppercase tracking-widest text-indigo-600">Import Documentation</h3>
+                <p className="text-sm text-slate-400 font-medium">Filing for {selectedDate}</p>
+              </div>
+              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-50 rounded-xl transition-all text-slate-400"><X className="w-6 h-6" /></button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Manifest / Job No. *</label>
+                <input required type="text" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-1 focus:ring-indigo-500 outline-none" value={newActivity.id} onChange={e => setNewActivity({...newActivity, id: e.target.value})} placeholder="e.g. IMP-DXB-9922" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Shipper / Consignee *</label>
+                <input required type="text" className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-1 focus:ring-indigo-500 outline-none" value={newActivity.shipperName} onChange={e => setNewActivity({...newActivity, shipperName: e.target.value})} placeholder="e.g. Acme Import Group" />
+              </div>
+
+              <div className="flex items-center gap-4 p-5 bg-indigo-50 rounded-2xl border border-indigo-100">
+                <AlertCircle className="w-6 h-6 text-indigo-500 shrink-0" />
+                <p className="text-xs font-bold text-indigo-700 leading-snug">Registration will be queued for customs approval. Maximum daily slots are restricted.</p>
+              </div>
+
+              <div className="pt-6 flex gap-4">
+                <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-4 font-bold text-slate-400 hover:text-slate-600 rounded-xl transition-all uppercase text-[10px] tracking-widest">Discard</button>
+                <button type="submit" className="flex-1 py-4 font-bold text-white bg-indigo-600 rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all uppercase text-[10px] tracking-widest">Initiate Clearance</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
